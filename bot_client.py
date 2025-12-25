@@ -25,7 +25,6 @@ class TodBotClient(discord.Client):
 # Initialising
 client = TodBotClient()
 tod = TodGame()
-statements = TodStatements()
 
 @client.event
 async def on_ready():
@@ -87,10 +86,19 @@ async def join_game(interaction: discord.Interaction):
     if not success:
         return await interaction.response.send_message(f"❌ {message}", ephemeral=True)
     
-    await interaction.response.send_message(
-        f"✅ **{interaction.user.name}** joined the game!\n"
-        f"👥 {message}"
+    embed = discord.Embed(
+        title="✅ Player Joined!",
+        description=f"**{interaction.user.mention}** joined the game!",
+        color=discord.Color.green()
     )
+    
+    embed.add_field(
+        name="Total Players",
+        value=f"👥 {message.split(': ')[1]}",
+        inline=False
+    )
+    
+    await interaction.response.send_message(embed=embed)
 
 # QUIT GAME
 @client.tree.command(name="quit_game", description="Quit the current truth or dare game")
@@ -111,15 +119,31 @@ async def quit_game(interaction: discord.Interaction):
         )
     
     if overseer_quit:
-        return await interaction.response.send_message(
-            f"🛑 **Overseer has quit the game.**\n"
-            f"🎮 Game ended. Total players were: {player_count}"
+        embed = discord.Embed(
+            title="🛑 Game Ended",
+            description="**Overseer has quit the game.**",
+            color=discord.Color.red()
         )
+        embed.add_field(
+            name="Total Players",
+            value=f"👥 {player_count}",
+            inline=False
+        )
+        return await interaction.response.send_message(embed=embed)
     
-    await interaction.response.send_message(
-        f"🚪 **{interaction.user.name}** has quit the game.\n"
-        f"👥 Players remaining: {player_count}"
+    embed = discord.Embed(
+        title="🚪 Player Left",
+        description=f"**{interaction.user.mention}** has quit the game.",
+        color=discord.Color.orange()
     )
+    
+    embed.add_field(
+        name="Players Remaining",
+        value=f"👥 {player_count}",
+        inline=False
+    )
+    
+    await interaction.response.send_message(embed=embed)
 
 # PICK PLAYER
 @client.tree.command(name="pick", description="Pick a random player (overseer only)")
@@ -150,7 +174,7 @@ async def pick(interaction: discord.Interaction):
 
     embed.add_field(
         name="Next Step",
-        value="Choose `/truth` or `/dare`",
+        value="Choose Truth or Dare using the buttons below",
         inline=False
     )
 
@@ -161,58 +185,6 @@ async def pick(interaction: discord.Interaction):
     await interaction.response.send_message(
         embed=embed,
         view=view
-    )
-
-# TRUTH
-@client.tree.command(name="truth", description="Choose truth")
-async def truth(interaction: discord.Interaction):
-    if not interaction.guild:
-        return await interaction.response.send_message("❌ This command only works in servers.", ephemeral=True)
-    
-    gid = interaction.guild.id
-    
-    if not tod.game_exists(gid):
-        return await interaction.response.send_message("❌ No active game.", ephemeral=True)
-    
-    if tod.get_current_player(gid) is None:
-        return await interaction.response.send_message("❌ No one has been picked yet!", ephemeral=True)
-    
-    if not tod.is_current_player(gid, interaction.user.id):
-        return await interaction.response.send_message("❌ It's not your turn!", ephemeral=True)
-    
-    selected_truth = statements.get_truth()
-    tod.reset_current_player(gid)
-    
-    await interaction.response.send_message(
-        f"🧠 **Truth for {interaction.user.mention}:**\n"
-        f">>> {selected_truth}\n\n"
-        f"Overseer can use `/pick` for the next player!"
-    )
-
-# DARE
-@client.tree.command(name="dare", description="Choose dare")
-async def dare(interaction: discord.Interaction):
-    if not interaction.guild:
-        return await interaction.response.send_message("❌ This command only works in servers.", ephemeral=True)
-    
-    gid = interaction.guild.id
-    
-    if not tod.game_exists(gid):
-        return await interaction.response.send_message("❌ No active game.", ephemeral=True)
-    
-    if tod.get_current_player(gid) is None:
-        return await interaction.response.send_message("❌ No one has been picked yet!", ephemeral=True)
-    
-    if not tod.is_current_player(gid, interaction.user.id):
-        return await interaction.response.send_message("❌ It's not your turn!", ephemeral=True)
-    
-    selected_dare = statements.get_dare()
-    tod.reset_current_player(gid)
-    
-    await interaction.response.send_message(
-        f"🔥 **Dare for {interaction.user.mention}:**\n"
-        f">>> {selected_dare}\n\n"
-        f"Overseer can use `/pick` for the next player!"
     )
 
 # END GAME 

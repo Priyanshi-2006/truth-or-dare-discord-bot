@@ -38,11 +38,19 @@ class GameControlView(discord.ui.View):
 
         game["players"].add(interaction.user.id)
 
-        await interaction.response.send_message(
-            f"✅ You joined the game!\n"
-            f"👥 Players: {len(game['players'])}",
-            ephemeral=True
+        embed = discord.Embed(
+            title="✅ Player Joined!",
+            description=f"**{interaction.user.mention}** joined the game!",
+            color=discord.Color.green()
         )
+        
+        embed.add_field(
+            name="Total Players",
+            value=f"👥 {len(game['players'])}",
+            inline=False
+        )
+        
+        await interaction.response.send_message(embed=embed)
 
     @discord.ui.button(
         style=discord.ButtonStyle.danger,
@@ -62,11 +70,20 @@ class GameControlView(discord.ui.View):
 
         # Overseer quits → end game
         if user_id == game["overseer"]:
-            del games[gid]
-            return await interaction.response.send_message(
-                "🛑 Overseer quit. Game ended.",
-                ephemeral=True
+            player_count = len(game["players"])
+            del self.games[gid]
+            
+            embed = discord.Embed(
+                title="🛑 Game Ended",
+                description="**Overseer has quit the game.**",
+                color=discord.Color.red()
             )
+            embed.add_field(
+                name="Total Players",
+                value=f"👥 {player_count}",
+                inline=False
+            )
+            return await interaction.response.send_message(embed=embed)
 
         if user_id not in game["players"]:
             return await interaction.response.send_message(
@@ -79,11 +96,19 @@ class GameControlView(discord.ui.View):
         if game["current"] == user_id:
             game["current"] = None
 
-        await interaction.response.send_message(
-            f"🚪 You quit the game.\n"
-            f"👥 Players remaining: {len(game['players'])}",
-            ephemeral=True
+        embed = discord.Embed(
+            title="🚪 Player Left",
+            description=f"**{interaction.user.mention}** has quit the game.",
+            color=discord.Color.orange()
         )
+        
+        embed.add_field(
+            name="Players Remaining",
+            value=f"👥 {len(game['players'])}",
+            inline=False
+        )
+        
+        await interaction.response.send_message(embed=embed)
 
 # ---------------- SELECT T/D BUTTONS ----------------
 class GameTurnView(discord.ui.View):
@@ -107,13 +132,24 @@ class GameTurnView(discord.ui.View):
         question = statements.get_truth()
         game["current"] = None
 
-        await interaction.response.send_message(
-            f"🧠 **Truth:**\n>>> {question}",
-            ephemeral=False
+        embed = discord.Embed(
+            title="🧠 Truth Time!",
+            description=question,
+            color=discord.Color.blue()
         )
+        
+        embed.add_field(
+            name="Player",
+            value=interaction.user.mention,
+            inline=False
+        )
+        
+        embed.set_footer(text="Overseer can use /pick for the next player!")
+
+        await interaction.response.send_message(embed=embed)
 
     # -------- DARE --------
-    @discord.ui.button(style=discord.ButtonStyle.secondary, emoji="❗", label="Dare")
+    @discord.ui.button(style=discord.ButtonStyle.primary, emoji="❗", label="Dare")
     async def dare_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         gid = self.guild_id
         game = self.games.get(gid)
@@ -127,10 +163,21 @@ class GameTurnView(discord.ui.View):
         challenge = statements.get_dare()
         game["current"] = None
 
-        await interaction.response.send_message(
-            f"🔥 **Dare:**\n>>> {challenge}",
-            ephemeral=False
+        embed = discord.Embed(
+            title="🔥 Dare Challenge!",
+            description=challenge,
+            color=discord.Color.red()
         )
+        
+        embed.add_field(
+            name="Player",
+            value=interaction.user.mention,
+            inline=False
+        )
+        
+        embed.set_footer(text="Overseer can use /pick for the next player!")
+
+        await interaction.response.send_message(embed=embed)
     
     # -------- JOIN --------
     @discord.ui.button(
@@ -161,11 +208,19 @@ class GameTurnView(discord.ui.View):
 
         game["players"].add(interaction.user.id)
 
-        await interaction.response.send_message(
-            f"✅ You joined the game!\n"
-            f"👥 Players: {len(game['players'])}",
-            ephemeral=True
+        embed = discord.Embed(
+            title="✅ Player Joined!",
+            description=f"**{interaction.user.mention}** joined the game!",
+            color=discord.Color.green()
         )
+        
+        embed.add_field(
+            name="Total Players",
+            value=f"👥 {len(game['players'])}",
+            inline=False
+        )
+        
+        await interaction.response.send_message(embed=embed)
     
     # -------- QUIT --------
     @discord.ui.button(
@@ -186,11 +241,20 @@ class GameTurnView(discord.ui.View):
 
         # Overseer quits → end game
         if user_id == game["overseer"]:
-            del games[gid]
-            return await interaction.response.send_message(
-                "🛑 Overseer quit. Game ended.",
-                ephemeral=True
+            player_count = len(game["players"])
+            del self.games[gid]
+            
+            embed = discord.Embed(
+                title="🛑 Game Ended",
+                description="**Overseer has quit the game.**",
+                color=discord.Color.red()
             )
+            embed.add_field(
+                name="Total Players",
+                value=f"👥 {player_count}",
+                inline=False
+            )
+            return await interaction.response.send_message(embed=embed)
 
         if user_id not in game["players"]:
             return await interaction.response.send_message(
@@ -203,8 +267,16 @@ class GameTurnView(discord.ui.View):
         if game["current"] == user_id:
             game["current"] = None
 
-        await interaction.response.send_message(
-            f"🚪 You quit the game.\n"
-            f"👥 Players remaining: {len(game['players'])}",
-            ephemeral=True
+        embed = discord.Embed(
+            title="🚪 Player Left",
+            description=f"**{interaction.user.mention}** has quit the game.",
+            color=discord.Color.orange()
         )
+        
+        embed.add_field(
+            name="Players Remaining",
+            value=f"👥 {len(game['players'])}",
+            inline=False
+        )
+        
+        await interaction.response.send_message(embed=embed)
