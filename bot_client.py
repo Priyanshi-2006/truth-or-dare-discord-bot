@@ -1,10 +1,10 @@
 # Local Modules
 import config
 from views import GameControlView, GameTurnView
-from tod import TodStatements
+from tod import TodGame, TodStatements
 
 # Built-in/Installed Modules
-import discord, random
+import discord
 from discord import app_commands
 
 # -----------------------------------------------------------------------
@@ -22,9 +22,10 @@ class TodBotClient(discord.Client):
         await self.tree.sync()
         print("Commands synced!")
 
-statements = TodStatements()
+# Initialising
 client = TodBotClient()
-games = {}
+tod = TodGame()
+statements = TodStatements()
 
 @client.event
 async def on_ready():
@@ -45,20 +46,15 @@ async def start_game(interaction: discord.Interaction):
         )
 
     gid = interaction.guild.id
-
-    if gid in games:
-        overseer = interaction.guild.get_member(games[gid]["overseer"])
+    success, message = tod.start_game(gid, interaction.user.id)
+    
+    if not success:
+        overseer = interaction.guild.get_member(tod.get_overseer(gid))
         return await interaction.response.send_message(
-            f"❌ A game is already running.\n"
+            f"❌ {message}\n"
             f"👑 Overseer: **{overseer.name if overseer else 'Unknown'}**",
             ephemeral=True
         )
-
-    games[gid] = {
-        "overseer": interaction.user.id,
-        "players": set(),
-        "current": None
-    }
 
     embed = discord.Embed(
         title="🎮 Truth or Dare Game Started!",
@@ -72,7 +68,7 @@ async def start_game(interaction: discord.Interaction):
         inline=False
     )
 
-    view = GameControlView(guild_id=gid, games=games)
+    view = GameControlView(guild_id=gid, games=tod.games)
 
     await interaction.response.send_message(
         embed=embed,
@@ -86,29 +82,14 @@ async def join_game(interaction: discord.Interaction):
         return await interaction.response.send_message("❌ This command only works in servers.", ephemeral=True)
     
     gid = interaction.guild.id
-    if gid not in games:
-        return await interaction.response.send_message("❌ No active game. Use `/start_game` first!", ephemeral=True)
+    success, message = tod.join_game(gid, interaction.user.id)
     
-    game = games.get(gid)
-    # BLOCK OVERSEER FROM JOINING
-    if interaction.user.id == game["overseer"]:
-        return await interaction.response.send_message(
-            "❌ The overseer cannot join the game as a player.",
-            ephemeral=True
-        )
-
-    # OPTIONAL: prevent duplicate joins
-    if interaction.user.id in game["players"]:
-        return await interaction.response.send_message(
-            "⚠️ You have already joined the game.",
-            ephemeral=True
-        )
+    if not success:
+        return await interaction.response.send_message(f"❌ {message}", ephemeral=True)
     
-    games[gid]["players"].add(interaction.user.id)
-    player_count = len(games[gid]["players"])
     await interaction.response.send_message(
         f"✅ **{interaction.user.name}** joined the game!\n"
-        f"👥 Players: {player_count}"
+        f"👥 {message}"
     )
 
 # QUIT GAME
@@ -121,39 +102,23 @@ async def quit_game(interaction: discord.Interaction):
         )
 
     gid = interaction.guild.id
-    game = games.get(gid)
-
-    if not game:
+    success, message, player_count, overseer_quit = tod.quit_game(gid, interaction.user.id)
+    
+    if not success:
         return await interaction.response.send_message(
-            "❌ No active game to quit.",
+            f"❌ {message}",
             ephemeral=True
         )
-
-    user_id = interaction.user.id
-
-    if user_id == game["overseer"]:
-        player_count = len(game["players"])
-        del games[gid]
+    
+    if overseer_quit:
         return await interaction.response.send_message(
             f"🛑 **Overseer has quit the game.**\n"
             f"🎮 Game ended. Total players were: {player_count}"
         )
-
-    if user_id not in game["players"]:
-        return await interaction.response.send_message(
-            "❌ You are not part of the current game.",
-            ephemeral=True
-        )
-
-    game["players"].remove(user_id)
-
-
-    if game["current"] == user_id:
-        game["current"] = None
-
+    
     await interaction.response.send_message(
         f"🚪 **{interaction.user.name}** has quit the game.\n"
-        f"👥 Players remaining: {len(game['players'])}"
+        f"👥 Players remaining: {player_count}"
     )
 
 # PICK PLAYER
@@ -163,19 +128,18 @@ async def pick(interaction: discord.Interaction):
         return await interaction.response.send_message("❌ This command only works in servers.", ephemeral=True)
     
     gid = interaction.guild.id
-    game = games.get(gid)
     
-    if not game:
+    if not tod.game_exists(gid):
         return await interaction.response.send_message("❌ No active game.", ephemeral=True)
     
-    if interaction.user.id != game["overseer"]:
+    if not tod.is_overseer(gid, interaction.user.id):
         return await interaction.response.send_message("❌ Only the overseer can pick players.", ephemeral=True)
     
-    if not game["players"]:
-        return await interaction.response.send_message("❌ No players have joined yet!")
+    success, message, chosen = tod.pick_player(gid)
     
-    chosen = random.choice(list(game["players"]))
-    game["current"] = chosen
+    if not success:
+        return await interaction.response.send_message(f"❌ {message}", ephemeral=True)
+    
     user = await interaction.guild.fetch_member(chosen)
     
     embed = discord.Embed(
@@ -192,7 +156,7 @@ async def pick(interaction: discord.Interaction):
 
     embed.set_footer(text="Players can still join or quit below")
 
-    view = GameTurnView(guild_id=gid, games=games)
+    view = GameTurnView(guild_id=gid, games=tod.games)
 
     await interaction.response.send_message(
         embed=embed,
@@ -206,19 +170,18 @@ async def truth(interaction: discord.Interaction):
         return await interaction.response.send_message("❌ This command only works in servers.", ephemeral=True)
     
     gid = interaction.guild.id
-    game = games.get(gid)
     
-    if not game:
+    if not tod.game_exists(gid):
         return await interaction.response.send_message("❌ No active game.", ephemeral=True)
     
-    if game["current"] is None:
+    if tod.get_current_player(gid) is None:
         return await interaction.response.send_message("❌ No one has been picked yet!", ephemeral=True)
     
-    if interaction.user.id != game["current"]:
+    if not tod.is_current_player(gid, interaction.user.id):
         return await interaction.response.send_message("❌ It's not your turn!", ephemeral=True)
     
     selected_truth = statements.get_truth()
-    game["current"] = None  # Reset current player
+    tod.reset_current_player(gid)
     
     await interaction.response.send_message(
         f"🧠 **Truth for {interaction.user.mention}:**\n"
@@ -233,19 +196,18 @@ async def dare(interaction: discord.Interaction):
         return await interaction.response.send_message("❌ This command only works in servers.", ephemeral=True)
     
     gid = interaction.guild.id
-    game = games.get(gid)
     
-    if not game:
+    if not tod.game_exists(gid):
         return await interaction.response.send_message("❌ No active game.", ephemeral=True)
     
-    if game["current"] is None:
+    if tod.get_current_player(gid) is None:
         return await interaction.response.send_message("❌ No one has been picked yet!", ephemeral=True)
     
-    if interaction.user.id != game["current"]:
+    if not tod.is_current_player(gid, interaction.user.id):
         return await interaction.response.send_message("❌ It's not your turn!", ephemeral=True)
     
     selected_dare = statements.get_dare()
-    game["current"] = None  # Reset current player
+    tod.reset_current_player(gid)
     
     await interaction.response.send_message(
         f"🔥 **Dare for {interaction.user.mention}:**\n"
@@ -260,16 +222,14 @@ async def end_game(interaction: discord.Interaction):
         return await interaction.response.send_message("❌ This command only works in servers.", ephemeral=True)
     
     gid = interaction.guild.id
-    game = games.get(gid)
     
-    if not game:
+    if not tod.game_exists(gid):
         return await interaction.response.send_message("❌ No active game.", ephemeral=True)
     
-    if interaction.user.id != game["overseer"]:
+    if not tod.is_overseer(gid, interaction.user.id):
         return await interaction.response.send_message("❌ Only the overseer can end the game.", ephemeral=True)
     
-    player_count = len(game["players"])
-    del games[gid]
+    success, message, player_count = tod.end_game(gid)
     
     await interaction.response.send_message(
         f"🎮 **Game Ended!**\n"
@@ -283,21 +243,23 @@ async def players(interaction: discord.Interaction):
         return await interaction.response.send_message("❌ This command only works in servers.", ephemeral=True)
     
     gid = interaction.guild.id
-    game = games.get(gid)
     
-    if not game:
+    if not tod.game_exists(gid):
         return await interaction.response.send_message("❌ No active game.", ephemeral=True)
     
-    if not game["players"]:
+    player_ids = tod.get_players(gid)
+    
+    if not player_ids:
         return await interaction.response.send_message("❌ No players have joined yet!")
     
     player_list = []
-    for player_id in game["players"]:
+    for player_id in player_ids:
         member = interaction.guild.get_member(player_id)
         if member:
             player_list.append(member.name)
     
-    overseer = interaction.guild.get_member(game["overseer"])
+    overseer_id = tod.get_overseer(gid)
+    overseer = interaction.guild.get_member(overseer_id)
     
     await interaction.response.send_message(
         f"👥 **Current Players ({len(player_list)}):**\n"
@@ -305,10 +267,10 @@ async def players(interaction: discord.Interaction):
         f"👑 **Overseer:** {overseer.name if overseer else 'Unknown'}"
     )
 
-# DEBUG COMMANDS
+# DEBUG COMMAND: SHOWS GAME DICTIONARY
 @client.tree.command(name="debug", description="Debug")
 async def debug(interaction: discord.Interaction):
-    await interaction.response.send_message(f"{games}")
+    await interaction.response.send_message(f"{tod.games}")
 
 # -----------------------------------------------------------------------
 # RUNNING THE BOT

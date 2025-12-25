@@ -4,9 +4,9 @@ import subprocess,sys
 
 # -----------------------------------------------------------------------
 # PURPOSE OF THIS FILE: 
-# When any changes are made in py files. The
-# Bot restarts with new implementations. Run bot_client.py directly to
-# avoid restart the bot with every save.
+# When any changes are made in py files. The Bot restarts with
+# new implementations. Run bot_client.py directly to
+# avoid restarting the bot with every save.
 # -----------------------------------------------------------------------
 
 def run_bot():
