@@ -1,15 +1,25 @@
+# Local Modules
 from tod import TodStatements
+# Installed Modules
 import discord
 
 statements = TodStatements()
 
-# ---------------- JOIN GAME BUTTONS ----------------
+# -----------------------------------------------------------------------
+# VIEWS IMPLEMENTATION:
+# Buttons that are located under the embeds
+# are reffered to as views and are much more
+# user-friendly than commands.
+# -----------------------------------------------------------------------
+
+# JOIN GAME BUTTONS
 class GameControlView(discord.ui.View):
     def __init__(self, guild_id: int, games: dict):
         super().__init__(timeout=None)
         self.guild_id = guild_id
         self.games = games
 
+    # JOIN
     @discord.ui.button(
         style=discord.ButtonStyle.success,
         emoji="➕"
@@ -52,6 +62,7 @@ class GameControlView(discord.ui.View):
         
         await interaction.response.send_message(embed=embed)
 
+    # QUIT
     @discord.ui.button(
         style=discord.ButtonStyle.danger,
         emoji="➖"
@@ -110,14 +121,14 @@ class GameControlView(discord.ui.View):
         
         await interaction.response.send_message(embed=embed)
 
-# ---------------- SELECT T/D BUTTONS ----------------
+# SELECT T/D BUTTONS
 class GameTurnView(discord.ui.View):
     def __init__(self, guild_id: int, games: dict):
         super().__init__(timeout=None)
         self.guild_id = guild_id
         self.games = games
 
-    # -------- TRUTH --------
+    # TRUTH
     @discord.ui.button(style=discord.ButtonStyle.primary, emoji="❔", label="Truth")
     async def truth_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         gid = self.guild_id
@@ -148,7 +159,7 @@ class GameTurnView(discord.ui.View):
 
         await interaction.response.send_message(embed=embed)
 
-    # -------- DARE --------
+    # DARE 
     @discord.ui.button(style=discord.ButtonStyle.primary, emoji="❗", label="Dare")
     async def dare_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         gid = self.guild_id
@@ -179,7 +190,7 @@ class GameTurnView(discord.ui.View):
 
         await interaction.response.send_message(embed=embed)
     
-    # -------- JOIN --------
+    # JOIN
     @discord.ui.button(
         style=discord.ButtonStyle.success,
         emoji="➕"
@@ -222,7 +233,7 @@ class GameTurnView(discord.ui.View):
         
         await interaction.response.send_message(embed=embed)
     
-    # -------- QUIT --------
+    # QUIT
     @discord.ui.button(
         style=discord.ButtonStyle.danger,
         emoji="➖"
