@@ -19,6 +19,7 @@ class TodGame:
         self.games[gid] = {
             "overseer": overseer_id,
             "players": set(),
+            "picked": set(),
             "current": None
         }
         return True, "Game started successfully."
@@ -28,7 +29,7 @@ class TodGame:
         if gid not in self.games:
             return False, "No active game.", 0
         
-        player_count = len(self.games[gid]["players"])
+        player_count = len(self.games[gid]["players"]) + len(self.games[gid]["picked"])
         del self.games[gid]
         return True, "Game ended.", player_count
     
@@ -56,11 +57,12 @@ class TodGame:
         if user_id == game["overseer"]:
             return False, "The overseer cannot join as a player."
         
-        if user_id in game["players"]:
+        if user_id in game["players"] or user_id in game["picked"]:
             return False, "Already joined."
         
         game["players"].add(user_id)
-        return True, f"Joined successfully. Total players: {len(game['players'])}"
+        total_players = len(game["players"]) + len(game["picked"])
+        return True, f"Joined successfully. Total players: {total_players}"
     
     # Remove a player from the game
     def quit_game(self, gid, user_id):
@@ -70,20 +72,29 @@ class TodGame:
         
         # If overseer quits, end the game
         if user_id == game["overseer"]:
-            player_count = len(game["players"])
+            player_count = len(game["players"]) + len(game["picked"])
             del self.games[gid]
             return True, "Overseer quit. Game ended.", player_count, True
         
-        if user_id not in game["players"]:
+        # Check if player is in either set
+        in_players = user_id in game["players"]
+        in_picked = user_id in game["picked"]
+        
+        if not in_players and not in_picked:
             return False, "Not part of the game.", 0, False
         
-        game["players"].remove(user_id)
+        # Remove from whichever set they're in
+        if in_players:
+            game["players"].remove(user_id)
+        if in_picked:
+            game["picked"].remove(user_id)
         
         # Reset current player if they quit
         if game["current"] == user_id:
             game["current"] = None
         
-        return True, "Quit successfully.", len(game["players"]), False
+        total_players = len(game["players"]) + len(game["picked"])
+        return True, "Quit successfully.", total_players, False
     
     # Pick a random player for the turn
     def pick_player(self, gid):
@@ -91,10 +102,22 @@ class TodGame:
         if not game:
             return False, "No active game.", None
         
-        if not game["players"]:
+        total_players = len(game["players"]) + len(game["picked"])
+        if total_players == 0:
             return False, "No players have joined yet.", None
         
+        # If all players have been picked, reset the rotation
+        if len(game["players"]) == 0:
+            game["players"] = game["picked"].copy()
+            game["picked"].clear()
+        
+        # Pick a random player from the available pool
         chosen = random.choice(list(game["players"]))
+        
+        # Move the chosen player to the picked set
+        game["players"].remove(chosen)
+        game["picked"].add(chosen)
+        
         game["current"] = chosen
         return True, "Player picked.", chosen
     
@@ -123,7 +146,7 @@ class TodGame:
         game = self.games.get(gid)
         if not game:
             return []
-        return list(game["players"])
+        return list(game["players"]) + list(game["picked"])
     
     # Get the overseer's ID
     def get_overseer(self, gid):
