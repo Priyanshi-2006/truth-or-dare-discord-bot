@@ -14,3 +14,15 @@ However, a better approach is to use a simple for loop to select a player sequen
 The Overseer cannot participate in Truth and Dare, missing out on fun with their friends (or enjoying them suffer(?)). To solve this issue, the overseer will included in `player` list. The `overseer` key will be removed. When a new game is created, The overseer is the first player in the `player` list. The index position 0 will be reserved for the overseer. When an overseer leaves, the next player automatically becomes the overseer. Game does not end unless the Overseer executes `/end` command.
 
 Another command that must be implemented alongside is `/kick` command. The overseer will be able to kick player. (This helps in removing AFK players.)
+
+## 3. Developer Mode & Commands
+
+Currently, the `/debug` command displays the `games` dictionary. This is not ideal for a developer (us). Create an Embed that shows information relevant to a developer. (BotID, Guilds Joined, etc). Currently this feature hasn't be thought through.
+
+When executing the main script, A `debug` argument will be used to enable the debug mode. By default its false.
+
+```bash
+python main.py --debug=true
+```
+
+The debug mode will expose all the available debug commands.
